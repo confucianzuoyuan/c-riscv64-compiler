@@ -4,4 +4,4 @@
 **/*.s
 **/a.out
 /tmp*
-/chibicc
+/zhizhicc
