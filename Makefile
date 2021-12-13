@@ -1,7 +1,11 @@
 CFLAGS=-std=c11 -g -fno-common
+SRCS=$(wildcard *.c)
+OBJS=$(SRCS:.c=.o)
 
-zhizhicc: main.o
-	$(CC) -o zhizhicc main.o $(LDFLAGS)
+zhizhicc: $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(OBJS): zhizhicc.h
 
 test: zhizhicc
 	./test.sh
