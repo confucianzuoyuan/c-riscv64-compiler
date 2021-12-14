@@ -70,11 +70,21 @@ static void gen_expr(Node *node) {
   error("无效的表达式");
 }
 
+static void gen_stmt(Node *node) {
+  if (node->kind == ND_EXPR_STMT) {
+      gen_expr(node->lhs);
+      return;
+  }
+
+  error("无效的语句");
+}
+
 void codegen(Node *node) {
   printf(".global main\n");
   printf("main:\n");
 
-  gen_expr(node);
-  
-  assert(depth == 0);
+  for (Node *n = node; n; n = n->next) {
+      gen_stmt(n);
+      assert(depth == 0);
+  }
 }

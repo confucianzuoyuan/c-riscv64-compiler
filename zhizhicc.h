@@ -47,6 +47,7 @@ typedef enum {
   ND_NE,  // !=
   ND_LT,  // <
   ND_LE,  // <=
+  ND_EXPR_STMT, // 表达式语句
   ND_NUM, // 整数
 } NodeKind;
 
@@ -54,6 +55,7 @@ typedef enum {
 typedef struct Node Node;
 struct Node {
   NodeKind kind; // 节点类型
+  Node *next;    // 下一个节点的指针
   Node *lhs;     // 运算符左边的节点
   Node *rhs;     // 运算符右边的节点
   int val;       // 如果kind == ND_NUM，则使用这个字段

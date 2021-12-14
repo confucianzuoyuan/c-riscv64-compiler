@@ -1,5 +1,14 @@
 #include "zhizhicc.h"
 
+static Node *expr(Token **rest, Token *tok);
+static Node *expr_stmt(Token **rest, Token *tok);
+static Node *equality(Token **rest, Token *tok);
+static Node *relational(Token **rest, Token *tok);
+static Node *add(Token **rest, Token *tok);
+static Node *mul(Token **rest, Token *tok);
+static Node *unary(Token **rest, Token *tok);
+static Node *primary(Token **rest, Token *tok);
+
 // 创建新的节点
 static Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
@@ -29,13 +38,17 @@ static Node *new_num(int val) {
   return node;
 }
 
-static Node *expr(Token **rest, Token *tok);
-static Node *equality(Token **rest, Token *tok);
-static Node *relational(Token **rest, Token *tok);
-static Node *add(Token **rest, Token *tok);
-static Node *mul(Token **rest, Token *tok);
-static Node *unary(Token **rest, Token *tok);
-static Node *primary(Token **rest, Token *tok);
+// stmt = expr-stmt
+static Node *stmt(Token **rest, Token *tok) {
+  return expr_stmt(rest, tok);
+}
+
+// expr-stmt = expr ";"
+static Node *expr_stmt(Token **rest, Token *tok) {
+    Node *node = new_unary(ND_EXPR_STMT, expr(&tok, tok));
+    *rest = skip(tok, ";");
+    return node;
+}
 
 // expr = equality
 static Node *expr(Token **rest, Token *tok) {
@@ -161,10 +174,11 @@ static Node *primary(Token **rest, Token *tok) {
   error_tok(tok, "预期是一个表达式");
 }
 
+// program = stmt*
 Node *parse(Token *tok) {
-  Node *node = expr(&tok, tok);
-  if (tok->kind != TK_EOF) {
-    error_tok(tok, "多余的标记");
-  }
-  return node;
+  Node head = {};
+  Node *cur = &head;
+  while (tok->kind != TK_EOF)
+    cur = cur->next = stmt(&tok, tok);
+  return head.next;
 }
