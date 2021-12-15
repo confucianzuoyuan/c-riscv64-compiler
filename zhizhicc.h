@@ -71,6 +71,7 @@ typedef enum {
   ND_LE,        // <=
   ND_ASSIGN,    // 赋值 =
   ND_RETURN,    // return语句
+  ND_IF,        // if语句
   ND_BLOCK,     // 块语句 { ... }
   ND_EXPR_STMT, // 表达式语句
   ND_VAR,       // 变量
@@ -84,6 +85,11 @@ struct Node {
   Node *next;    // 下一个节点的指针
   Node *lhs;     // 运算符左边的节点
   Node *rhs;     // 运算符右边的节点
+
+  // "if" 语句
+  Node *cond;
+  Node *then;
+  Node *els;
 
   // 花括号包含的代码，Block
   Node *body;

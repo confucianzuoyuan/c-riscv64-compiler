@@ -6,6 +6,11 @@
 
 static int depth;
 
+static int count(void) {
+  static int i = 1;
+  return i++;
+}
+
 // 将a0寄存器中的内容压栈
 static void push(void) {
   printf("  addi sp, sp, -8\n");
@@ -103,6 +108,18 @@ static void gen_expr(Node *node) {
 
 static void gen_stmt(Node *node) {
   switch (node->kind) {
+  case ND_IF: {
+    int c = count();
+    gen_expr(node->cond);
+    printf("  ble a0, zero, .L.else.%d\n", c);
+    gen_stmt(node->then);
+    printf("  j .L.end.%d\n", c);
+    printf(".L.else.%d:\n", c);
+    if (node->els)
+      gen_stmt(node->els);
+    printf(".L.end.%d:\n", c);
+    return;
+  }
   case ND_BLOCK:
     for (Node *n = node->body; n; n = n->next)
       gen_stmt(n);
