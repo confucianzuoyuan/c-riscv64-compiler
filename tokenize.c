@@ -80,6 +80,12 @@ static int read_punct(char *p) {
   return ispunct(*p) ? 1 : 0;
 }
 
+static void convert_keywords(Token *tok) {
+  for (Token *t = tok; t->kind != TK_EOF; t = t->next)
+    if (equal(t, "return"))
+      t->kind = TK_KEYWORD;
+}
+
 // 对`p`指针指向的字符串进行词法分析，然后返回新的标记序列。
 Token *tokenize(char *p) {
   current_input = p;
@@ -125,5 +131,6 @@ Token *tokenize(char *p) {
   }
 
   cur = cur->next = new_token(TK_EOF, p, p);
+  convert_keywords(head.next);
   return head.next;
 }

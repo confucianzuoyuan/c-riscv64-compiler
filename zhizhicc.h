@@ -14,10 +14,11 @@ typedef struct Node Node;
 //
 
 typedef enum {
-  TK_IDENT, // 关键字
-  TK_PUNCT, // 分隔符
-  TK_NUM,   // 数值字面量
-  TK_EOF,   // 文件结束符标记
+  TK_IDENT,   // 关键字
+  TK_PUNCT,   // 分隔符
+  TK_KEYWORD, // 关键字
+  TK_NUM,     // 数值字面量
+  TK_EOF,     // 文件结束符标记
 } TokenKind;
 
 // 标记类型
@@ -59,19 +60,20 @@ struct Function {
 
 // 抽象语法树节点
 typedef enum {
-  ND_ADD, // +
-  ND_SUB, // -
-  ND_MUL, // *
-  ND_DIV, // /
-  ND_NEG, // unary -
-  ND_EQ,  // ==
-  ND_NE,  // !=
-  ND_LT,  // <
-  ND_LE,  // <=
-  ND_ASSIGN, // 赋值 =
+  ND_ADD,       // +
+  ND_SUB,       // -
+  ND_MUL,       // *
+  ND_DIV,       // /
+  ND_NEG,       // unary -
+  ND_EQ,        // ==
+  ND_NE,        // !=
+  ND_LT,        // <
+  ND_LE,        // <=
+  ND_ASSIGN,    // 赋值 =
+  ND_RETURN,    // return语句
   ND_EXPR_STMT, // 表达式语句
-  ND_VAR, // 变量
-  ND_NUM, // 整数
+  ND_VAR,       // 变量
+  ND_NUM,       // 整数
 } NodeKind;
 
 // 抽象语法树节点类型
