@@ -6,24 +6,32 @@
 
 static int depth;
 
+// 将a0寄存器中的内容压栈
 static void push(void) {
   printf("  addi sp, sp, -8\n");
   printf("  sd a0, 0(sp)\n");
   depth++;
 }
 
+// 将栈顶的内容弹栈到arg寄存器中
 static void pop(char *arg) {
   printf("  ld %s, 0(sp)\n", arg);
   printf("  addi sp, sp, 8\n");
   depth--;
 }
 
+// 将 `n` 增加到最近的 `align` 的整数倍。
+// 例如：align_to(5, 8)  => 8
+//       align_to(11, 8) => 16
+// 用来做内存对齐
+static int align_to(int n, int align) {
+  return (n + align - 1) / align * align;
+}
+
 // 计算给定节点在内存中的绝对地址
 static void gen_addr(Node *node) {
   if (node->kind == ND_VAR) {
-    // 计算变量的偏移量
-    int offset = (node->name - 'a' + 1) * 8;
-    printf("  addi a0, fp, %d\n", -offset);
+    printf("  addi a0, fp, %d\n", node->var->offset);
     return;
   }
 
@@ -102,7 +110,19 @@ static void gen_stmt(Node *node) {
   error("无效的语句");
 }
 
-void codegen(Node *node) {
+// 为每个局部变量计算偏移量
+static void assign_lvar_offsets(Function *prog) {
+  int offset = 0;
+  for (Obj *var = prog->locals; var; var = var->next) {
+    offset += 8;
+    var->offset = -offset;
+  }
+  prog->stack_size = align_to(offset, 16);
+}
+
+void codegen(Function *prog) {
+  assign_lvar_offsets(prog);
+
   printf(".global main\n");
   printf("main:\n");
 
@@ -112,7 +132,7 @@ void codegen(Node *node) {
   printf("  mv fp, sp\n");
   printf("  addi sp, sp, -208\n");
 
-  for (Node *n = node; n; n = n->next) {
+  for (Node *n = prog->body; n; n = n->next) {
       gen_stmt(n);
       assert(depth == 0);
   }

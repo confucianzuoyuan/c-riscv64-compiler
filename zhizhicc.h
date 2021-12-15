@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -5,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+typedef struct Node Node;
 
 //
 // 词法分析器
@@ -38,6 +41,23 @@ Token *tokenize(char *input);
 // 语法分析器
 //
 
+// 局部变量
+typedef struct Obj Obj;
+struct Obj {
+  Obj *next;
+  char *name; // 变量名
+  int offset; // 变量相对于fp的偏移量
+};
+
+// 函数
+typedef struct Function Function;
+struct Function {
+  Node *body;    // 函数体
+  Obj *locals;   // 局部变量
+  int stack_size;// 函数栈的大小
+};
+
+// 抽象语法树节点
 typedef enum {
   ND_ADD, // +
   ND_SUB, // -
@@ -61,14 +81,14 @@ struct Node {
   Node *next;    // 下一个节点的指针
   Node *lhs;     // 运算符左边的节点
   Node *rhs;     // 运算符右边的节点
-  char name;     // 如果 kind == ND_VAR ，则使用这个字段
+  Obj *var;      // 如果 kind == ND_VAR ，则使用这个字段
   int val;       // 如果kind == ND_NUM，则使用这个字段
 };
 
-Node *parse(Token *tok);
+Function *parse(Token *tok);
 
 //
 // 代码生成
 //
 
-void codegen(Node *node);
+void codegen(Function *prog);
