@@ -8,14 +8,26 @@ static int depth;
 
 static void push(void) {
   printf("  addi sp, sp, -8\n");
-  printf("  sw a0, 0(sp)\n");
+  printf("  sd a0, 0(sp)\n");
   depth++;
 }
 
 static void pop(char *arg) {
-  printf("  lw %s, 0(sp)\n", arg);
+  printf("  ld %s, 0(sp)\n", arg);
   printf("  addi sp, sp, 8\n");
   depth--;
+}
+
+// 计算给定节点在内存中的绝对地址
+static void gen_addr(Node *node) {
+  if (node->kind == ND_VAR) {
+    // 计算变量的偏移量
+    int offset = (node->name - 'a' + 1) * 8;
+    printf("  addi a0, fp, %d\n", -offset);
+    return;
+  }
+
+  error("不是一个左值");
 }
 
 static void gen_expr(Node *node) {
@@ -26,6 +38,17 @@ static void gen_expr(Node *node) {
   case ND_NEG:
     gen_expr(node->lhs);
     printf("  sub a0, zero, a0\n");
+    return;
+  case ND_VAR:
+    gen_addr(node);
+    printf("  ld a0, 0(a0)\n");
+    return;
+  case ND_ASSIGN:
+    gen_addr(node->lhs);
+    push();
+    gen_expr(node->rhs);
+    pop("a1");
+    printf("  sd a0, 0(a1)\n");
     return;
   }
 
@@ -83,8 +106,20 @@ void codegen(Node *node) {
   printf(".global main\n");
   printf("main:\n");
 
+  // Prologue
+  printf("  addi sp, sp, -8\n");
+  printf("  sd fp, 0(sp)\n");
+  printf("  mv fp, sp\n");
+  printf("  addi sp, sp, -208\n");
+
   for (Node *n = node; n; n = n->next) {
       gen_stmt(n);
       assert(depth == 0);
   }
+
+  // Epilogue
+  printf("  mv sp, fp\n");
+  printf("  ld fp, 0(sp)\n");
+  printf("  addi sp, sp, 8\n");
+  printf("  jr ra\n");
 }
