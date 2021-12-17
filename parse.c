@@ -1,3 +1,15 @@
+// 本文件中包含了一个C语言的递归下降语法分析器（recursive descent parser）。
+// 文件中的大部分函数根据符号来定义，也就是从一个输入标记流中读取回来生成的AST节点。
+// 例如`stmt()`方法负责从输入标记流中返回一个语句。
+// 然后构建一个表示语句的AST节点。
+//
+// 每个方法从理论上来讲返回两个值：AST节点和剩余的标记列表。
+// 由于C不支持多返回值，所以剩余的标记列表使用指针参数来返回给调用者。
+//
+// 输入标记使用链表来表示。不像其他的递归下降语法分析器，我们没有输入标记流的概念。
+// 大多数语法分析函数不会改变语法分析器的全局状态。
+// 所以很容易实现向前看多个标记的功能。
+
 #include "zhizhicc.h"
 
 // 语法分析时产生的所有的局部变量实例都存储到下面的列表中。
@@ -266,7 +278,7 @@ static Node *mul(Token **rest, Token *tok) {
   }
 }
 
-// unary = ("+" | "-") unary
+// unary = ("+" | "-" | "*" | "&") unary
 //       | primary
 static Node *unary(Token **rest, Token *tok) {
   if (equal(tok, "+"))
@@ -274,6 +286,12 @@ static Node *unary(Token **rest, Token *tok) {
 
   if (equal(tok, "-"))
     return new_unary(ND_NEG, unary(rest, tok->next), tok);
+
+  if (equal(tok, "&"))
+    return new_unary(ND_ADDR, unary(rest, tok->next), tok);
+
+  if (equal(tok, "*"))
+    return new_unary(ND_DEREF, unary(rest, tok->next), tok);
 
   return primary(rest, tok);
 }

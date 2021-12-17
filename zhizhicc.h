@@ -70,6 +70,8 @@ typedef enum {
   ND_LT,        // <
   ND_LE,        // <=
   ND_ASSIGN,    // 赋值 =
+  ND_ADDR,      // & 取地址运算符
+  ND_DEREF,     // * 解引用运算符
   ND_RETURN,    // return语句
   ND_IF,        // if语句
   ND_FOR,       // for语句或者while语句
