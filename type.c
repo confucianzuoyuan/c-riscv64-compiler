@@ -42,6 +42,7 @@ void add_type(Node *node) {
   case ND_LT:
   case ND_LE:
   case ND_NUM:
+  case ND_FUNCALL:
     // 节点类型是int
     node->ty = ty_int;
     return;

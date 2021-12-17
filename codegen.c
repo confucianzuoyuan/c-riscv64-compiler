@@ -76,6 +76,10 @@ static void gen_expr(Node *node) {
     pop("a1");
     printf("  sd a0, 0(a1)\n");
     return;
+  case ND_FUNCALL:
+    printf("  mv a0, zero\n");
+    printf("  call %s\n", node->funcname);
+    return;
   }
 
   gen_expr(node->lhs);
@@ -183,10 +187,11 @@ void codegen(Function *prog) {
   printf("main:\n");
 
   // Prologue
-  printf("  addi sp, sp, -8\n");
-  printf("  sd fp, 0(sp)\n");
+  printf("  addi sp, sp, -16\n");
+  printf("  sd ra, 8(sp)\n"); // 保存返回值地址
+  printf("  sd fp, 0(sp)\n"); // 保存帧指针
   printf("  mv fp, sp\n");
-  printf("  addi sp, sp, %d\n", prog->stack_size);
+  printf("  addi sp, sp, %d\n", -prog->stack_size);
 
   gen_stmt(prog->body);
   assert(depth == 0);
@@ -194,7 +199,8 @@ void codegen(Function *prog) {
   // Epilogue
   printf(".L.return:\n");
   printf("  mv sp, fp\n");
-  printf("  ld fp, 0(sp)\n");
-  printf("  addi sp, sp, 8\n");
-  printf("  jr ra\n");
+  printf("  ld ra, 8(sp)\n"); // 恢复返回值地址
+  printf("  ld fp, 0(sp)\n"); // 恢复帧指针
+  printf("  addi sp, sp, 16\n");
+  printf("  ret\n");
 }

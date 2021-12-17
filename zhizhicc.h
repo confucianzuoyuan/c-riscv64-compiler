@@ -79,13 +79,13 @@ typedef enum {
   ND_IF,        // if语句
   ND_FOR,       // for语句或者while语句
   ND_BLOCK,     // 块语句 { ... }
+  ND_FUNCALL,   // 函数调用
   ND_EXPR_STMT, // 表达式语句
   ND_VAR,       // 变量
   ND_NUM,       // 整数
 } NodeKind;
 
 // 抽象语法树节点类型
-typedef struct Node Node;
 struct Node {
   NodeKind kind; // 节点类型
   Node *next;    // 下一个节点的指针
@@ -104,6 +104,9 @@ struct Node {
 
   // 花括号包含的代码，Block
   Node *body;
+
+  // 函数调用
+  char *funcname;
 
   Obj *var;      // 如果 kind == ND_VAR ，则使用这个字段
   int val;       // 如果kind == ND_NUM，则使用这个字段
