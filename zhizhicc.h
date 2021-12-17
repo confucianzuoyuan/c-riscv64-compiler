@@ -84,6 +84,8 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind; // 节点类型
   Node *next;    // 下一个节点的指针
+  Token *tok;    // 语法树节点的tok代表
+
   Node *lhs;     // 运算符左边的节点
   Node *rhs;     // 运算符右边的节点
 

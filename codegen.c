@@ -40,7 +40,7 @@ static void gen_addr(Node *node) {
     return;
   }
 
-  error("不是一个左值");
+  error_tok(node->tok, "不是一个左值");
 }
 
 static void gen_expr(Node *node) {
@@ -103,7 +103,7 @@ static void gen_expr(Node *node) {
     return;
   }
 
-  error("无效的表达式");
+  error_tok(node->tok, "无效的表达式");
 }
 
 static void gen_stmt(Node *node) {
@@ -150,7 +150,7 @@ static void gen_stmt(Node *node) {
     return;
   }
 
-  error("无效的语句");
+  error_tok(node->tok, "无效的语句");
 }
 
 // 为每个局部变量计算偏移量
