@@ -186,7 +186,7 @@ void codegen(Function *prog) {
   printf("  addi sp, sp, -8\n");
   printf("  sd fp, 0(sp)\n");
   printf("  mv fp, sp\n");
-  printf("  addi sp, sp, -208\n");
+  printf("  addi sp, sp, %d\n", prog->stack_size);
 
   gen_stmt(prog->body);
   assert(depth == 0);

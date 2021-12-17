@@ -8,6 +8,7 @@
 #include <string.h>
 
 typedef struct Node Node;
+typedef struct Type Type;
 
 //
 // 词法分析器
@@ -86,6 +87,7 @@ typedef struct Node Node;
 struct Node {
   NodeKind kind; // 节点类型
   Node *next;    // 下一个节点的指针
+  Type *ty;      // 类型，例如 int 或者 指向 int 的指针
   Token *tok;    // 语法树节点的tok代表
 
   Node *lhs;     // 运算符左边的节点
@@ -106,6 +108,25 @@ struct Node {
 };
 
 Function *parse(Token *tok);
+
+//
+// 类型
+//
+
+typedef enum {
+  TY_INT,
+  TY_PTR,
+} TypeKind;
+
+struct Type {
+  TypeKind kind;
+  Type *base;
+};
+
+extern Type *ty_int;
+
+bool is_integer(Type *ty);
+void add_type(Node *node);
 
 //
 // 代码生成

@@ -16,6 +16,7 @@
 Obj *locals;
 
 static Node *compound_stmt(Token **rest, Token *tok);
+static Node *stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
@@ -142,12 +143,15 @@ static Node *stmt(Token **rest, Token *tok) {
 
 // compound-stmt = stmt* "}"
 static Node *compound_stmt(Token **rest, Token *tok) {
+  Node *node = new_node(ND_BLOCK, tok);
+  
   Node head = {};
   Node *cur = &head;
-  while (!equal(tok, "}"))
+  while (!equal(tok, "}")) {
     cur = cur->next = stmt(&tok, tok);
+    add_type(cur);
+  }
 
-  Node *node = new_node(ND_BLOCK, tok);
   node->body = head.next;
   *rest = tok->next;
   return node;
@@ -234,6 +238,62 @@ static Node *relational(Token **rest, Token *tok) {
   }
 }
 
+// 在C中，`+`运算符被重载用来做指针的算术。
+// 如果 p 是一个指针，那么 p + n 不是将 n 加到 p 上。
+// 而是将 sizeof(*p) * n 加到 p 上。
+// 所以 p + n 指向的是 p 后面的 n 个元素（不是n个字节）的位置。
+static Node *new_add(Node *lhs, Node *rhs, Token *tok) {
+  add_type(lhs);
+  add_type(rhs);
+
+  // num + num
+  if (is_integer(lhs->ty) && is_integer(rhs->ty))
+    return new_binary(ND_ADD, lhs, rhs, tok);
+
+  if (lhs->ty->base && rhs->ty->base)
+    error_tok(tok, "无效的操作数");
+
+  // 将 `num + ptr` 转换成 `ptr + num`
+  if (!lhs->ty->base && rhs->ty->base) {
+    Node *tmp = lhs;
+    lhs = rhs;
+    rhs = tmp;
+  }
+
+  // ptr + num
+  // rhs = rhs * 8
+  rhs = new_binary(ND_MUL, rhs, new_num(8, tok), tok);
+  return new_binary(ND_ADD, lhs, rhs, tok);
+}
+
+// `-`运算符也被重载了
+static Node *new_sub(Node *lhs, Node *rhs, Token *tok) {
+  add_type(lhs);
+  add_type(rhs);
+
+  // num - num
+  if (is_integer(lhs->ty) && is_integer(rhs->ty))
+    return new_binary(ND_SUB, lhs, rhs, tok);
+
+  // ptr - num
+  if (lhs->ty->base && is_integer(rhs->ty)) {
+    rhs = new_binary(ND_MUL, rhs, new_num(8, tok), tok);
+    add_type(rhs);
+    Node *node = new_binary(ND_SUB, lhs, rhs, tok);
+    node->ty = lhs->ty;
+    return node;
+  }
+
+  // ptr - ptr, 返回两个指针之间的元素数量
+  if (lhs->ty->base && rhs->ty->base) {
+    Node *node = new_binary(ND_SUB, lhs, rhs, tok);
+    node->ty = ty_int;
+    return new_binary(ND_DIV, node, new_num(8, tok), tok);
+  }
+
+  error_tok(tok, "无效的操作数");
+}
+
 // add = mul ("+" mul | "-" mul)*
 static Node *add(Token **rest, Token *tok) {
   Node *node = mul(&tok, tok);
@@ -242,12 +302,12 @@ static Node *add(Token **rest, Token *tok) {
     Token *start = tok;
 
     if (equal(tok, "+")) {
-      node = new_binary(ND_ADD, node, mul(&tok, tok->next), start);
+      node = new_add(node, mul(&tok, tok->next), start);
       continue;
     }
 
     if (equal(tok, "-")) {
-      node = new_binary(ND_SUB, node, mul(&tok, tok->next), start);
+      node = new_sub(node, mul(&tok, tok->next), start);
       continue;
     }
 
