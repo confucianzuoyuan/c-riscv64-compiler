@@ -41,22 +41,23 @@ void add_type(Node *node) {
   case ND_NE:
   case ND_LT:
   case ND_LE:
-  case ND_VAR:
   case ND_NUM:
     // 节点类型是int
     node->ty = ty_int;
+    return;
+  case ND_VAR:
+    node->ty = node->var->ty;
     return;
   case ND_ADDR:
     // &a节点的类型是指向a类型的指针
     node->ty = pointer_to(node->lhs->ty);
     return;
   case ND_DEREF:
-    // 如果lhs是指向某种类型的指针
-    // 那么节点*a的类型就是a的类型
-    if (node->lhs->ty->kind == TY_PTR)
-      node->ty = node->lhs->ty->base;
-    else
-      node->ty = ty_int;
+    if (node->lhs->ty->kind != TY_PTR)
+      error_tok(node->tok, "无效的指针解引用");
+    // 节点的类型是lhs的类型。
+    // *a的类型是a指向的值的类型
+    node->ty = node->lhs->ty->base;
     return;
   }
 }
