@@ -107,6 +107,7 @@ struct Node {
 
   // 函数调用
   char *funcname;
+  Node *args;
 
   Obj *var;      // 如果 kind == ND_VAR ，则使用这个字段
   int val;       // 如果kind == ND_NUM，则使用这个字段
