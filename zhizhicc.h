@@ -56,6 +56,8 @@ struct Obj {
 // 函数
 typedef struct Function Function;
 struct Function {
+  Function *next;// 下一个函数的指针
+  char *name;    // 函数名
   Node *body;    // 函数体
   Obj *locals;   // 局部变量
   int stack_size;// 函数栈的大小
@@ -122,6 +124,7 @@ Function *parse(Token *tok);
 typedef enum {
   TY_INT,
   TY_PTR,
+  TY_FUNC,
 } TypeKind;
 
 struct Type {
@@ -132,12 +135,16 @@ struct Type {
 
   // 声明
   Token *name;
+
+  // 函数类型就是返回值的类型
+  Type *return_ty;
 };
 
 extern Type *ty_int;
 
 bool is_integer(Type *ty);
 Type *pointer_to(Type *base);
+Type *func_type(Type *return_ty);
 void add_type(Node *node);
 
 //
