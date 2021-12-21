@@ -51,6 +51,19 @@ static void gen_addr(Node *node) {
   error_tok(node->tok, "不是一个左值");
 }
 
+static void load(Type *ty) {
+  if (ty->kind == TY_ARRAY) {
+    return;
+  }
+
+  printf("  ld a0, 0(a0)\n");
+}
+
+static void store(void) {
+  pop("a1");
+  printf("  sd a0, 0(a1)\n");
+}
+
 static void gen_expr(Node *node) {
   switch (node->kind) {
   case ND_NUM:
@@ -62,11 +75,11 @@ static void gen_expr(Node *node) {
     return;
   case ND_VAR:
     gen_addr(node);
-    printf("  ld a0, 0(a0)\n");
+    load(node->ty);
     return;
   case ND_DEREF:
     gen_expr(node->lhs);
-    printf("  ld a0, 0(a0)\n");
+    load(node->ty);
     return;
   case ND_ADDR:
     gen_addr(node->lhs);
@@ -75,8 +88,7 @@ static void gen_expr(Node *node) {
     gen_addr(node->lhs);
     push();
     gen_expr(node->rhs);
-    pop("a1");
-    printf("  sd a0, 0(a1)\n");
+    store();
     return;
   case ND_FUNCALL: {
     int nargs = 0;
@@ -187,7 +199,7 @@ static void assign_lvar_offsets(Function *prog) {
   for (Function *fn = prog; fn; fn = fn->next) {
     int offset = 0;
     for (Obj *var = fn->locals; var; var = var->next) {
-      offset += 8;
+      offset += var->ty->size;
       var->offset = -offset;
     }
     fn->stack_size = align_to(offset, 16);

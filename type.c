@@ -1,6 +1,6 @@
 #include "zhizhicc.h"
 
-Type *ty_int = &(Type){TY_INT};
+Type *ty_int = &(Type){TY_INT, 8};
 
 bool is_integer(Type *ty) {
   return ty->kind == TY_INT;
@@ -15,6 +15,7 @@ Type *copy_type(Type *ty) {
 Type *pointer_to(Type *base) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_PTR;
+  ty->size = 8;
   ty->base = base;
   return ty;
 }
@@ -23,6 +24,15 @@ Type *func_type(Type *return_ty) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_FUNC;
   ty->return_ty = return_ty;
+  return ty;
+}
+
+Type *array_of(Type *base, int len) {
+  Type *ty = calloc(1, sizeof(Type));
+  ty->kind = TY_ARRAY;
+  ty->size = base->size * len;
+  ty->base = base;
+  ty->array_len = len;
   return ty;
 }
 
@@ -48,7 +58,11 @@ void add_type(Node *node) {
   case ND_MUL:
   case ND_DIV:
   case ND_NEG:
+    node->ty = node->lhs->ty;
+    return;
   case ND_ASSIGN:
+    if (node->lhs->ty->kind == TY_ARRAY)
+      error_tok(node->lhs->tok, "不是一个左值");
     // 节点的类型就是lhs的类型
     node->ty = node->lhs->ty;
     return;
@@ -65,11 +79,14 @@ void add_type(Node *node) {
     node->ty = node->var->ty;
     return;
   case ND_ADDR:
-    // &a节点的类型是指向a类型的指针
-    node->ty = pointer_to(node->lhs->ty);
+    if (node->lhs->ty->kind == TY_ARRAY)
+      node->ty = pointer_to(node->lhs->ty->base);
+    else
+      // &a节点的类型是指向a类型的指针
+      node->ty = pointer_to(node->lhs->ty);
     return;
   case ND_DEREF:
-    if (node->lhs->ty->kind != TY_PTR)
+    if (!node->lhs->ty->kind)
       error_tok(node->tok, "无效的指针解引用");
     // 节点的类型是lhs的类型。
     // *a的类型是a指向的值的类型
