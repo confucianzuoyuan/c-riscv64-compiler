@@ -58,6 +58,7 @@ typedef struct Function Function;
 struct Function {
   Function *next;// 下一个函数的指针
   char *name;    // 函数名
+  Obj *params;   // 参数列表
   Node *body;    // 函数体
   Obj *locals;   // 局部变量
   int stack_size;// 函数栈的大小
@@ -138,11 +139,14 @@ struct Type {
 
   // 函数类型就是返回值的类型
   Type *return_ty;
+  Type *params;
+  Type *next;
 };
 
 extern Type *ty_int;
 
 bool is_integer(Type *ty);
+Type *copy_type(Type *ty);
 Type *pointer_to(Type *base);
 Type *func_type(Type *return_ty);
 void add_type(Node *node);
