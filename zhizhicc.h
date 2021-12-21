@@ -48,20 +48,20 @@ Token *tokenize(char *input);
 typedef struct Obj Obj;
 struct Obj {
   Obj *next;
-  char *name; // 变量名
-  Type *ty;   // 类型
-  int offset; // 变量相对于fp的偏移量
-};
+  char *name;    // 变量名
+  Type *ty;      // 类型
+  bool is_local; // 局部变量还是全局变量/函数
 
-// 函数
-typedef struct Function Function;
-struct Function {
-  Function *next;// 下一个函数的指针
-  char *name;    // 函数名
-  Obj *params;   // 参数列表
-  Node *body;    // 函数体
-  Obj *locals;   // 局部变量
-  int stack_size;// 函数栈的大小
+  int offset;    // 局部变量相对于fp的偏移量
+
+  // 全局变量还是函数
+  bool is_function;
+
+  // 函数
+  Obj *params;
+  Node *body;
+  Obj *locals;
+  int stack_size;
 };
 
 // 抽象语法树节点
@@ -116,7 +116,7 @@ struct Node {
   int val;       // 如果kind == ND_NUM，则使用这个字段
 };
 
-Function *parse(Token *tok);
+Obj *parse(Token *tok);
 
 //
 // 类型
@@ -161,4 +161,4 @@ void add_type(Node *node);
 // 代码生成
 //
 
-void codegen(Function *prog);
+void codegen(Obj *prog);
