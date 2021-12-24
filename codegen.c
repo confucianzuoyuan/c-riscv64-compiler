@@ -60,13 +60,19 @@ static void load(Type *ty) {
   if (ty->kind == TY_ARRAY) {
     return;
   }
-
-  printf("  ld a0, 0(a0)\n");
+  if (ty->size == 1)
+    printf("  lbu a0, 0(a0)\n");
+  else
+    printf("  ld a0, 0(a0)\n");
 }
 
-static void store(void) {
+static void store(Type *ty) {
   pop("a1");
-  printf("  sd a0, 0(a1)\n");
+
+  if (ty->size == 1)
+    printf("  sb a0, 0(a1)\n");
+  else
+    printf("  sd a0, 0(a1)\n");
 }
 
 static void gen_expr(Node *node) {
@@ -93,7 +99,7 @@ static void gen_expr(Node *node) {
     gen_addr(node->lhs);
     push();
     gen_expr(node->rhs);
-    store();
+    store(node->ty);
     return;
   case ND_FUNCALL: {
     int nargs = 0;
@@ -246,7 +252,10 @@ static void emit_text(Obj *prog) {
     // 将从寄存器传递过来的参数压栈
     int i = 0;
     for (Obj *var = fn->params; var; var = var->next)
-      printf("  sd %s, %d(fp)\n", argreg[i++], var->offset);
+      if (var->ty->size == 1)
+        printf("  sb %s, %d(fp)\n", argreg[i++], var->offset);
+      else
+        printf("  sd %s, %d(fp)\n", argreg[i++], var->offset);
 
     gen_stmt(fn->body);
     assert(depth == 0);

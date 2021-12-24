@@ -1,9 +1,10 @@
 #include "zhizhicc.h"
 
+Type *ty_char = &(Type){TY_CHAR, 1};
 Type *ty_int = &(Type){TY_INT, 8};
 
 bool is_integer(Type *ty) {
-  return ty->kind == TY_INT;
+  return ty->kind == TY_INT || ty->kind == TY_CHAR;
 }
 
 Type *copy_type(Type *ty) {
