@@ -1,0 +1,11 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+void assert(int expected, int actual, char *code) {
+  if (expected == actual) {
+    printf("%s => %d\n", code, actual);
+  } else {
+    printf("%s => 预期结果是：%d，得到的结果是：%d\n", code, expected, actual);
+    exit(1);
+  }
+}

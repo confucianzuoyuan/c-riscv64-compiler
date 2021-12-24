@@ -1,13 +1,13 @@
-#!/bin/sh
+#!/bin/bash
 tmp=`mktemp -d /tmp/zhizhicc-test-XXXXXX`
 trap 'rm -rf $tmp' INT TERM HUP EXIT
 echo > $tmp/empty.c
 
 check() {
     if [ $? -eq 0 ]; then
-        echo "testing $1 ... passed"
+        echo "测试 $1 ... 通过"
     else
-        echo "testing $1 ... failed"
+        echo "测试 $1 ... 通过"
         exit 1
     fi
 }
