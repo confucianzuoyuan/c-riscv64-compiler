@@ -19,7 +19,7 @@ void error(char *fmt, ...) {
 //
 // foo.c:10: x = y + 1;
 //               ^ <error message here>
-static void verror_at(char *loc, char *fmt, va_list ap) {
+static void verror_at(int line_no, char *loc, char *fmt, va_list ap) {
   // Find a line containing `loc`.
   char *line = loc;
   while (current_input < line && line[-1] != '\n')
@@ -29,20 +29,14 @@ static void verror_at(char *loc, char *fmt, va_list ap) {
   while (*end != '\n')
     end++;
 
-  // 获取行号
-  int line_no = 1;
-  for (char *p = current_input; p < line; p++)
-    if (*p == '\n')
-      line_no++;
-
-  // 打印出错的行
+  // Print out the line.
   int indent = fprintf(stderr, "%s:%d: ", current_filename, line_no);
   fprintf(stderr, "%.*s\n", (int)(end - line), line);
 
-  // 展示错误信息
+  // Show the error message.
   int pos = loc - line + indent;
 
-  fprintf(stderr, "%*s", pos, ""); // 打印出错位置前面的空格
+  fprintf(stderr, "%*s", pos, ""); // print pos spaces.
   fprintf(stderr, "^ ");
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
@@ -50,15 +44,20 @@ static void verror_at(char *loc, char *fmt, va_list ap) {
 }
 
 void error_at(char *loc, char *fmt, ...) {
+  int line_no = 1;
+  for (char *p = current_input; p < loc; p++)
+    if (*p == '\n')
+      line_no++;
+
   va_list ap;
   va_start(ap, fmt);
-  verror_at(loc, fmt, ap);
+  verror_at(line_no, loc, fmt, ap);
 }
 
 void error_tok(Token *tok, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  verror_at(tok->loc, fmt, ap);
+  verror_at(tok->line_no, tok->loc, fmt, ap);
 }
 
 // 如果当前标记可以匹配`s`，那么消费掉
@@ -220,6 +219,21 @@ static void convert_keywords(Token *tok) {
       t->kind = TK_KEYWORD;
 }
 
+// Initialize line info for all tokens.
+static void add_line_numbers(Token *tok) {
+  char *p = current_input;
+  int n = 1;
+
+  do {
+    if (p == tok->loc) {
+      tok->line_no = n;
+      tok = tok->next;
+    }
+    if (*p == '\n')
+      n++;
+  } while (*p++);
+}
+
 // 对`p`指针指向的字符串进行词法分析，然后返回新的标记序列。
 Token *tokenize(char *filename, char *p) {
   current_filename = filename;
@@ -289,6 +303,7 @@ Token *tokenize(char *filename, char *p) {
   }
 
   cur = cur->next = new_token(TK_EOF, p, p);
+  add_line_numbers(head.next);
   convert_keywords(head.next);
   return head.next;
 }

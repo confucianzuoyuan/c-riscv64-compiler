@@ -40,6 +40,8 @@ struct Token {
   int len;        // 标记的长度
   Type *ty;       // 如果是TK_STR标记，则使用这个字段
   char *str;      // 字符串字面量的内容，包括最后的'\0'终结字符
+
+  int line_no;    // 行号
 };
 
 void error(char *fmt, ...);
