@@ -41,7 +41,12 @@ static int align_to(int n, int align) {
 static void gen_addr(Node *node) {
   switch (node->kind) {
   case ND_VAR:
-    printf("  addi a0, fp, %d\n", node->var->offset);
+    if (node->var->is_local) {
+      printf("  addi a0, fp, %d\n", node->var->offset);
+    } else {
+      // 将全局变量的地址加载到a0寄存器
+      printf("  la a0, %s\n", node->var->name);
+    }
     return;
   case ND_DEREF:
     gen_expr(node->lhs);
@@ -209,9 +214,19 @@ static void assign_lvar_offsets(Obj *prog) {
   }
 }
 
-void codegen(Obj *prog) {
-  assign_lvar_offsets(prog);
+static void emit_data(Obj *prog) {
+  for (Obj *var = prog; var; var = var->next) {
+    if (var->is_function)
+      continue;
 
+    printf("  .data\n");
+    printf("  .global %s\n", var->name);
+    printf("%s:\n", var->name);
+    printf("  .zero %d\n", var->ty->size);
+  }
+}
+
+static void emit_text(Obj *prog) {
   for (Obj *fn = prog; fn; fn = fn->next) {
     if (!fn->is_function)
       continue;
@@ -244,4 +259,10 @@ void codegen(Obj *prog) {
     printf("  addi sp, sp, 16\n");
     printf("  ret\n");
   }
+}
+
+void codegen(Obj *prog) {
+  assign_lvar_offsets(prog);
+  emit_data(prog);
+  emit_text(prog);
 }
