@@ -220,6 +220,7 @@ static void assign_lvar_offsets(Obj *prog) {
   }
 }
 
+// 产生数据段的内容，一般用来存放全局变量之类的数据。
 static void emit_data(Obj *prog) {
   for (Obj *var = prog; var; var = var->next) {
     if (var->is_function)
@@ -228,10 +229,17 @@ static void emit_data(Obj *prog) {
     printf("  .data\n");
     printf("  .global %s\n", var->name);
     printf("%s:\n", var->name);
-    printf("  .zero %d\n", var->ty->size);
+    
+    if (var->init_data) {
+      for (int i = 0; i < var->ty->size; i++)
+        printf("  .byte %d\n", var->init_data[i]);
+    } else {
+      printf("  .zero %d\n", var->ty->size);
+    }
   }
 }
 
+// 产生代码段的内容，存放程序
 static void emit_text(Obj *prog) {
   for (Obj *fn = prog; fn; fn = fn->next) {
     if (!fn->is_function)
