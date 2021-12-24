@@ -9,6 +9,7 @@ $(OBJS): zhizhicc.h
 
 test: zhizhicc
 	./test.sh
+	./test-driver.sh
 
 clean:
 	rm -f zhizhicc *.o *~ tmp*

@@ -177,4 +177,4 @@ void add_type(Node *node);
 // 代码生成
 //
 
-void codegen(Obj *prog);
+void codegen(Obj *prog, FILE *out);
