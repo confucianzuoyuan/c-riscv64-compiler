@@ -96,6 +96,7 @@ typedef enum {
   ND_BLOCK,     // 块语句 { ... }
   ND_FUNCALL,   // 函数调用
   ND_EXPR_STMT, // 表达式语句
+  ND_STMT_EXPR, // 语句表达式
   ND_VAR,       // 变量
   ND_NUM,       // 整数
 } NodeKind;
@@ -117,7 +118,7 @@ struct Node {
   Node *init;
   Node *inc;
 
-  // 花括号包含的代码，Block
+  // 花括号包含的代码，Block或者语句表达式
   Node *body;
 
   // 函数调用

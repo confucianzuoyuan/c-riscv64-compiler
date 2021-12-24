@@ -93,5 +93,17 @@ void add_type(Node *node) {
     // *a的类型是a指向的值的类型
     node->ty = node->lhs->ty->base;
     return;
+  case ND_STMT_EXPR:
+    if (node->body) {
+      Node *stmt = node->body;
+      while (stmt->next)
+        stmt = stmt->next;
+      if (stmt->kind == ND_EXPR_STMT) {
+        node->ty = stmt->lhs->ty;
+        return;
+      }
+    }
+    error_tok(node->tok, "不支持语句表达式返回值为void");
+    return;
   }
 }
