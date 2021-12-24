@@ -10,11 +10,46 @@
 // 大多数语法分析函数不会改变语法分析器的全局状态。
 // 所以很容易实现向前看多个标记的功能。
 
+//
+// 作用域的数据结构
+//
+// +-----------------------------+
+// |                             |
+// | var1:value1 --> var2:value2 |
+// |                             |
+// +-----------------------------|
+//               ^
+//               |
+//               |
+// +-----------------------------+
+// |                             |
+// | var1:value1 --> var2:value2 |
+// |                             |
+// +-----------------------------|
+
 #include "zhizhicc.h"
+
+// 局部变量和全局变量的作用域
+typedef struct VarScope VarScope;
+struct VarScope {
+  VarScope *next;
+  char *name;
+  Obj *var;
+};
+
+// 表示块作用域
+typedef struct Scope Scope;
+struct Scope {
+  Scope *next;
+  VarScope *vars;
+};
 
 // 语法分析时产生的所有的局部变量实例都存储到下面的列表中。
 static Obj *locals;
 static Obj *globals;
+
+// 创建一个空作用域
+static Scope *scope = &(Scope){};
 
 static Type *declspec(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
@@ -32,18 +67,29 @@ static Node *postfix(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 
-// 通过变量名找到局部变量
+// 进入作用域
+// 1. 创建一个空作用域
+// 2. 压栈
+static void enter_scope(void) {
+  Scope *sc = calloc(1, sizeof(Scope));
+  sc->next = scope;
+  scope = sc;
+}
+
+// 离开作用域
+static void leave_scope(void) {
+  // 弹栈
+  scope = scope->next;
+}
+
+// 通过名字寻找变量
 static Obj *find_var(Token *tok) {
-  for (Obj *var = locals; var; var = var->next)
-    if (strlen(var->name) == tok->len &&
-        !strncmp(tok->loc, var->name, tok->len))
-      return var;
-
-  for (Obj *var = globals; var; var = var->next)
-    if (strlen(var->name) == tok->len &&
-        !strncmp(tok->loc, var->name, tok->len))
-      return var;
-
+  // 从栈顶开始寻找变量
+  // 因为栈顶是最内层作用域
+  for (Scope *sc = scope; sc; sc = sc->next)
+    for (VarScope *sc2 = sc->vars; sc2; sc2 = sc2->next)
+      if (equal(tok, sc2->name))
+        return sc2->var;
   return NULL;
 }
 
@@ -84,10 +130,20 @@ static Node *new_var_node(Obj *var, Token *tok) {
   return node;
 }
 
+static VarScope *push_scope(char *name, Obj *var) {
+  VarScope *sc = calloc(1, sizeof(VarScope));
+  sc->name = name;
+  sc->var = var;
+  sc->next = scope->vars;
+  scope->vars = sc;
+  return sc;
+}
+
 static Obj *new_var(char *name, Type *ty) {
   Obj *var = calloc(1, sizeof(Obj));
   var->name = name;
   var->ty = ty;
+  push_scope(name, var);
   return var;
 }
 
@@ -293,9 +349,12 @@ static Node *stmt(Token **rest, Token *tok) {
 // compound-stmt = (declaration | stmt)* "}"
 static Node *compound_stmt(Token **rest, Token *tok) {
   Node *node = new_node(ND_BLOCK, tok);
-
   Node head = {};
   Node *cur = &head;
+
+  // 进入作用域，因为碰到了左花括号
+  enter_scope();
+
   while (!equal(tok, "}")) {
     if (is_typename(tok))
       cur = cur->next = declaration(&tok, tok);
@@ -303,6 +362,9 @@ static Node *compound_stmt(Token **rest, Token *tok) {
       cur = cur->next = stmt(&tok, tok);
     add_type(cur);
   }
+
+  // 离开作用域，因为消费了右花括号
+  leave_scope();
 
   node->body = head.next;
   *rest = tok->next;
@@ -614,12 +676,16 @@ static Token *function(Token *tok, Type *basety) {
   fn->is_function = true;
 
   locals = NULL;
+  // 进入作用域
+  enter_scope();
   create_param_lvars(ty->params);
   fn->params = locals;
 
   tok = skip(tok, "{");
   fn->body = compound_stmt(&tok, tok);
   fn->locals = locals;
+  // 离开作用域
+  leave_scope();
   return tok;
 }
 
