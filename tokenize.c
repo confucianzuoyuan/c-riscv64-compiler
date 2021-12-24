@@ -228,6 +228,22 @@ Token *tokenize(char *filename, char *p) {
   Token *cur = &head;
 
   while (*p) {
+    // 跳过行注释
+    if (startswith(p, "//")) {
+      p += 2;
+      while (*p != '\n') p++;
+      continue;
+    }
+
+    // 跳过块注释
+    if (startswith(p, "/*")) {
+      char *q = strstr(p + 2, "*/");
+      if (!q)
+        error_at(p, "未闭合的块注释");
+      p = q + 2;
+      continue;
+    }
+    
     // 跳过空白字符
     if (isspace(*p)) {
       p++;
