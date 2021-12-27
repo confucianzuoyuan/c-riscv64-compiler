@@ -43,7 +43,7 @@ static void pop(char *arg) {
 // 例如：align_to(5, 8)  => 8
 //       align_to(11, 8) => 16
 // 用来做内存对齐
-static int align_to(int n, int align) {
+int align_to(int n, int align) {
   return (n + align - 1) / align * align;
 }
 

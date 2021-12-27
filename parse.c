@@ -616,14 +616,19 @@ static Type *struct_decl(Token **rest, Token *tok) {
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_STRUCT;
   struct_members(rest, tok, ty);
+  ty->align = 1;
 
   // Assign offsets within the struct to members.
   int offset = 0;
   for (Member *mem = ty->members; mem; mem = mem->next) {
+    offset = align_to(offset, mem->ty->align);
     mem->offset = offset;
     offset += mem->ty->size;
+
+    if (ty->align < mem->ty->align)
+      ty->align = mem->ty->align;
   }
-  ty->size = offset;
+  ty->size = align_to(offset, ty->align);
 
   return ty;
 }
@@ -633,13 +638,13 @@ static Member *get_struct_member(Type *ty, Token *tok) {
     if (mem->name->len == tok->len &&
         !strncmp(mem->name->loc, tok->loc, tok->len))
       return mem;
-  error_tok(tok, "no such member");
+  error_tok(tok, "没有这个成员");
 }
 
 static Node *struct_ref(Node *lhs, Token *tok) {
   add_type(lhs);
   if (lhs->ty->kind != TY_STRUCT)
-    error_tok(lhs->tok, "not a struct");
+    error_tok(lhs->tok, "不是一个结构体");
 
   Node *node = new_unary(ND_MEMBER, lhs, tok);
   node->member = get_struct_member(lhs->ty, tok);
