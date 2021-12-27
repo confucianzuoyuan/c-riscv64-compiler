@@ -47,6 +47,7 @@ int main() {
   ASSERT(2, ({ int x=2; { int x=3; } int y=4; x; }));
   ASSERT(3, ({ int x=2; { x=3; } x; }));
 
+  // 局部变量对齐以后，z占用8个字节的内存。
   ASSERT(15, ({ int x; int y; char z; char *a=&y; char *b=&z; b-a; }));
   ASSERT(1, ({ int x; char y; int z; char *a=&y; char *b=&z; b-a; }));
 

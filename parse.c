@@ -37,19 +37,42 @@ struct VarScope {
   Obj *var;
 };
 
+// 结构体标签（struct tag）的作用域
+typedef struct TagScope TagScope;
+struct TagScope {
+  TagScope *next;
+  char *name;
+  Type *ty;
+};
+
+
 // 表示块作用域
 typedef struct Scope Scope;
 struct Scope {
   Scope *next;
+
+  // C语言有两个块作用域
+  // 1. 变量的块作用域
+  // 2. 结构体标签的块作用域
   VarScope *vars;
+  TagScope *tags;
 };
 
 // 语法分析时产生的所有的局部变量实例都存储到下面的列表中。
 static Obj *locals;
+// 全局变量都保存在这个列表当中。
 static Obj *globals;
 
 // 创建一个空作用域
 static Scope *scope = &(Scope){};
+
+static Type *find_tag(Token *tok) {
+  for (Scope *sc = scope; sc; sc = sc->next)
+    for (TagScope *sc2 = sc->tags; sc2; sc2 = sc2->next)
+      if (equal(tok, sc2->name))
+        return sc2->ty;
+  return NULL;
+}
 
 static Type *declspec(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
@@ -100,6 +123,14 @@ static Node *new_node(NodeKind kind, Token *tok) {
   node->kind = kind;
   node->tok = tok;
   return node;
+}
+
+static void push_tag_scope(Token *tok, Type *ty) {
+  TagScope *sc = calloc(1, sizeof(TagScope));
+  sc->name = strndup(tok->loc, tok->len);
+  sc->ty = ty;
+  sc->next = scope->tags;
+  scope->tags = sc;
 }
 
 // 创建新的二元表达式节点
@@ -608,17 +639,30 @@ static void struct_members(Token **rest, Token *tok, Type *ty) {
   ty->members = head.next;
 }
 
-// struct-decl = "{" struct-members
+// struct-decl = ident? "{" struct-members
 static Type *struct_decl(Token **rest, Token *tok) {
-  tok = skip(tok, "{");
+  // 读取结构体标签
+  Token *tag = NULL;
+  if (tok->kind == TK_IDENT) {
+    tag = tok;
+    tok = tok->next;
+  }
 
-  // Construct a struct object.
+  if (tag && !equal(tok, "{")) {
+    Type *ty = find_tag(tag);
+    if (!ty)
+      error_tok(tag, "未知的结构体类型");
+    *rest = tok;
+    return ty;
+  }
+
+  // 实例化结构体对象
   Type *ty = calloc(1, sizeof(Type));
   ty->kind = TY_STRUCT;
-  struct_members(rest, tok, ty);
+  struct_members(rest, tok->next, ty);
   ty->align = 1;
 
-  // Assign offsets within the struct to members.
+  // 为结构体中的每个成员计算偏移量offset
   int offset = 0;
   for (Member *mem = ty->members; mem; mem = mem->next) {
     offset = align_to(offset, mem->ty->align);
@@ -629,6 +673,10 @@ static Type *struct_decl(Token **rest, Token *tok) {
       ty->align = mem->ty->align;
   }
   ty->size = align_to(offset, ty->align);
+
+  // 如果给定了结构体的名字，将这个结构体类型注册一下
+  if (tag)
+    push_tag_scope(tag, ty);
 
   return ty;
 }
