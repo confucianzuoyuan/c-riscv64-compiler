@@ -10,6 +10,7 @@
 
 typedef struct Node Node;
 typedef struct Type Type;
+typedef struct Member Member;
 
 //
 // strings.c
@@ -92,6 +93,7 @@ typedef enum {
   ND_LE,        // <=
   ND_ASSIGN,    // 赋值 =
   ND_COMMA,     // ,
+  ND_MEMBER,    // . (结构体成员的访问操作符)
   ND_ADDR,      // & 取地址运算符
   ND_DEREF,     // * 解引用运算符
   ND_RETURN,    // return语句
@@ -125,6 +127,9 @@ struct Node {
   // 花括号包含的代码，Block或者语句表达式
   Node *body;
 
+  // 结构提成员的访问
+  Member *member;
+
   // 函数调用
   char *funcname;
   Node *args;
@@ -145,6 +150,7 @@ typedef enum {
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
+  TY_STRUCT,
 } TypeKind;
 
 struct Type {
@@ -160,11 +166,23 @@ struct Type {
   // 数组的长度
   int array_len;
 
+  // 结构体
+  Member *members;
+
   // 函数类型就是返回值的类型
   Type *return_ty;
   Type *params;
   Type *next;
 };
+
+// 结构体成员
+struct Member {
+  Member *next;
+  Type *ty;
+  Token *name;
+  int offset;
+};
+
 
 extern Type *ty_char;
 extern Type *ty_int;
