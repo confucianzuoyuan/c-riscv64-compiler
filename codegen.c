@@ -82,6 +82,8 @@ static void load(Type *ty) {
   }
   if (ty->size == 1)
     println("  lbu a0, 0(a0)");
+  else if (ty->size == 4)
+    println("  lw a0, 0(a0)");
   else
     println("  ld a0, 0(a0)");
 }
@@ -99,6 +101,8 @@ static void store(Type *ty) {
 
   if (ty->size == 1)
     println("  sb a0, 0(a1)");
+  else if (ty->size == 4)
+    println("  sw a0, 0(a1)");
   else
     println("  sd a0, 0(a1)");
 }
@@ -281,6 +285,21 @@ static void emit_data(Obj *prog) {
   }
 }
 
+static void store_gp(int r, int offset, int sz) {
+  switch (sz) {
+  case 1:
+    println("  sb %s, %d(fp)", argreg[r], offset);
+    return;
+  case 4:
+    println("  sw %s, %d(fp)", argreg[r], offset);
+    return;
+  case 8:
+    println("  sd %s, %d(fp)", argreg[r], offset);
+    return;
+  }
+  unreachable();
+}
+
 // 产生代码段的内容，存放程序
 static void emit_text(Obj *prog) {
   for (Obj *fn = prog; fn; fn = fn->next) {
@@ -302,10 +321,7 @@ static void emit_text(Obj *prog) {
     // 将从寄存器传递过来的参数压栈
     int i = 0;
     for (Obj *var = fn->params; var; var = var->next)
-      if (var->ty->size == 1)
-        println("  sb %s, %d(fp)", argreg[i++], var->offset);
-      else
-        println("  sd %s, %d(fp)", argreg[i++], var->offset);
+      store_gp(i++, var->offset, var->ty->size);
 
     gen_stmt(fn->body);
     assert(depth == 0);

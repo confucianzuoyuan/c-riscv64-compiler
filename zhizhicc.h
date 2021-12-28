@@ -53,6 +53,9 @@ Token *skip(Token *tok, char *op);
 bool consume(Token **rest, Token *tok, char *str);
 Token *tokenize_file(char *filename);
 
+#define unreachable() \
+  error("内部错误，位置 %s:%d", __FILE__, __LINE__)
+
 //
 // 语法分析器
 //
