@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +37,7 @@ typedef struct Token Token;
 struct Token {
   TokenKind kind; // 标记类型
   Token *next;    // 下一个标记的指针
-  int val;        // 如果标记是TK_NUM，它的值
+  int64_t val;    // 如果标记是TK_NUM，它的值
   char *loc;      // 标记的位置
   int len;        // 标记的长度
   Type *ty;       // 如果是TK_STR标记，则使用这个字段
@@ -138,7 +139,7 @@ struct Node {
   Node *args;
 
   Obj *var;      // 如果 kind == ND_VAR ，则使用这个字段
-  int val;       // 如果kind == ND_NUM，则使用这个字段
+  int64_t val;   // 如果kind == ND_NUM，则使用这个字段
 };
 
 Obj *parse(Token *tok);
@@ -150,6 +151,7 @@ Obj *parse(Token *tok);
 typedef enum {
   TY_CHAR,
   TY_INT,
+  TY_LONG,
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
@@ -191,6 +193,7 @@ struct Member {
 
 extern Type *ty_char;
 extern Type *ty_int;
+extern Type *ty_long;
 
 bool is_integer(Type *ty);
 Type *copy_type(Type *ty);
