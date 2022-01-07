@@ -310,7 +310,7 @@ static void store_gp(int r, int offset, int sz) {
 // 产生代码段的内容，存放程序
 static void emit_text(Obj *prog) {
   for (Obj *fn = prog; fn; fn = fn->next) {
-    if (!fn->is_function)
+    if (!fn->is_function || !fn->is_definition)
       continue;
 
     println(".global %s", fn->name);
