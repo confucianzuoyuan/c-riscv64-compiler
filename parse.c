@@ -29,12 +29,13 @@
 
 #include "zhizhicc.h"
 
-// 局部变量和全局变量的作用域
+// 局部变量、全局变量或者typedef的作用域
 typedef struct VarScope VarScope;
 struct VarScope {
   VarScope *next;
   char *name;
   Obj *var;
+  Type *type_def;
 };
 
 // 结构体标签（struct tag）或者联合标签（union tag）的作用域
@@ -58,6 +59,11 @@ struct Scope {
   TagScope *tags;
 };
 
+// 变量的属性，例如typedef或者extern。
+typedef struct {
+  bool is_typedef;
+} VarAttr;
+
 // 语法分析时产生的所有的局部变量实例都存储到下面的列表中。
 static Obj *locals;
 // 全局变量都保存在这个列表当中。
@@ -75,9 +81,9 @@ static Type *find_tag(Token *tok) {
 }
 
 static bool is_typename(Token *tok);
-static Type *declspec(Token **rest, Token *tok);
+static Type *declspec(Token **rest, Token *tok, VarAttr *attr);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
-static Node *declaration(Token **rest, Token *tok);
+static Node *declaration(Token **rest, Token *tok, Type *basety);
 static Node *compound_stmt(Token **rest, Token *tok);
 static Node *stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
@@ -92,6 +98,7 @@ static Type *union_decl(Token **rest, Token *tok);
 static Node *postfix(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
+static Token *parse_typedef(Token *tok, Type *basety);
 
 // 进入作用域
 // 1. 创建一个空作用域
@@ -109,13 +116,13 @@ static void leave_scope(void) {
 }
 
 // 通过名字寻找变量
-static Obj *find_var(Token *tok) {
+static VarScope *find_var(Token *tok) {
   // 从栈顶开始寻找变量
   // 因为栈顶是最内层作用域
   for (Scope *sc = scope; sc; sc = sc->next)
     for (VarScope *sc2 = sc->vars; sc2; sc2 = sc2->next)
       if (equal(tok, sc2->name))
-        return sc2->var;
+        return sc2;
   return NULL;
 }
 
@@ -164,10 +171,9 @@ static Node *new_var_node(Obj *var, Token *tok) {
   return node;
 }
 
-static VarScope *push_scope(char *name, Obj *var) {
+static VarScope *push_scope(char *name) {
   VarScope *sc = calloc(1, sizeof(VarScope));
   sc->name = name;
-  sc->var = var;
   sc->next = scope->vars;
   scope->vars = sc;
   return sc;
@@ -177,7 +183,7 @@ static Obj *new_var(char *name, Type *ty) {
   Obj *var = calloc(1, sizeof(Obj));
   var->name = name;
   var->ty = ty;
-  push_scope(name, var);
+  push_scope(name)->var = var;
   return var;
 }
 
@@ -218,14 +224,25 @@ static char *get_ident(Token *tok) {
   return strndup(tok->loc, tok->len);
 }
 
-static int get_number(Token *tok) {
+static Type *find_typedef(Token *tok) {
+  if (tok->kind == TK_IDENT) {
+    VarScope *sc = find_var(tok);
+    if (sc)
+      return sc->type_def;
+  }
+
+  return NULL;
+}
+
+static long get_number(Token *tok) {
   if (tok->kind != TK_NUM)
     error_tok(tok, "expected a number");
   return tok->val;
 }
 
 // declspec = ("void" | "char" | "short" | "int" | "long"
-//             | struct-decl | union-decl)+
+//             | "typedef"
+//             | struct-decl | union-decl | typedef-name)+
 //
 // 类型名的顺序是无关紧要的。例如，`int long static`和`static long int`的含义是一样的。
 // 而且还可以写成`static long`，因为当我们指定了`long`和`short`以后，可以省略掉`int`。
@@ -233,7 +250,7 @@ static int get_number(Token *tok) {
 //
 // 在这个函数中，我们统计了每个类型名的出现的次数，直到遇见一个非类型名的标记，
 // 我们就可以返回当前的类型对象了。
-static Type *declspec(Token **rest, Token *tok) {
+static Type *declspec(Token **rest, Token *tok, VarAttr *attr) {
   // 我们使用一个单独的整型作为所有类型名的计数器。
   // 例如，位0和1表示我们看到关键字`void`多少次。
   enum {
@@ -249,17 +266,35 @@ static Type *declspec(Token **rest, Token *tok) {
   int counter = 0;
 
   while (is_typename(tok)) {
-    // Handle user-defined types.
-    if (equal(tok, "struct") || equal(tok, "union")) {
-      if (equal(tok, "struct"))
+    // 处理typedef关键字
+    if (equal(tok, "typedef")) {
+      if (!attr)
+        error_tok(tok, "不允许在上下文中指定存储类型");
+      attr->is_typedef = true;
+      tok = tok->next;
+      continue;
+    }
+
+    // 处理用户自定义类型
+    Type *ty2 = find_typedef(tok);
+    if (equal(tok, "struct") || equal(tok, "union") || ty2) {
+      if (counter)
+        break;
+
+      if (equal(tok, "struct")) {
         ty = struct_decl(&tok, tok->next);
-      else
+      } else if (equal(tok, "union")) {
         ty = union_decl(&tok, tok->next);
+      } else {
+        ty = ty2;
+        tok = tok->next;
+      }
+
       counter += OTHER;
       continue;
     }
 
-    // Handle built-in types.
+    // 处理内置类型
     if (equal(tok, "void"))
       counter += VOID;
     else if (equal(tok, "char"))
@@ -313,7 +348,7 @@ static Type *func_params(Token **rest, Token *tok, Type *ty) {
   while (!equal(tok, ")")) {
     if (cur != &head)
       tok = skip(tok, ",");
-    Type *basety = declspec(&tok, tok);
+    Type *basety = declspec(&tok, tok, NULL);
     Type *ty = declarator(&tok, tok, basety);
     cur = cur->next = copy_type(ty);
   }
@@ -366,9 +401,7 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
 }
 
 // declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-static Node *declaration(Token **rest, Token *tok) {
-  Type *basety = declspec(&tok, tok);
-
+static Node *declaration(Token **rest, Token *tok, Type *basety) {
   Node head = {};
   Node *cur = &head;
   int i = 0;
@@ -402,12 +435,13 @@ static Node *declaration(Token **rest, Token *tok) {
 static bool is_typename(Token *tok) {
   static char *kw[] = {
     "void", "char", "short", "int", "long", "struct", "union",
+    "typedef",
   };
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
     if (equal(tok, kw[i]))
       return true;
-  return false;
+  return find_typedef(tok);
 }
 
 // stmt = "return" expr ";"
@@ -479,10 +513,19 @@ static Node *compound_stmt(Token **rest, Token *tok) {
   enter_scope();
 
   while (!equal(tok, "}")) {
-    if (is_typename(tok))
-      cur = cur->next = declaration(&tok, tok);
-    else
+    if (is_typename(tok)) {
+      VarAttr attr = {};
+      Type *basety = declspec(&tok, tok, &attr);
+
+      if (attr.is_typedef) {
+        tok = parse_typedef(tok, basety);
+        continue;
+      }
+
+      cur = cur->next = declaration(&tok, tok, basety);
+    } else {
       cur = cur->next = stmt(&tok, tok);
+    }
     add_type(cur);
   }
 
@@ -705,7 +748,7 @@ static void struct_members(Token **rest, Token *tok, Type *ty) {
   Member *cur = &head;
 
   while (!equal(tok, "}")) {
-    Type *basety = declspec(&tok, tok);
+    Type *basety = declspec(&tok, tok, NULL);
     int i = 0;
 
     while (!consume(&tok, tok, ";")) {
@@ -897,11 +940,11 @@ static Node *primary(Token **rest, Token *tok) {
       return funcall(rest, tok);
     }
     // 变量
-    Obj *var = find_var(tok);
-    if (!var)
+    VarScope *sc = find_var(tok);
+    if (!sc || !sc->var)
       error_tok(tok, "未定义变量");
     *rest = tok->next;
-    return new_var_node(var, tok);
+    return new_var_node(sc->var, tok);
   }
 
   if (tok->kind == TK_STR) {
@@ -917,6 +960,20 @@ static Node *primary(Token **rest, Token *tok) {
   }
 
   error_tok(tok, "预期是一个表达式");
+}
+
+static Token *parse_typedef(Token *tok, Type *basety) {
+  bool first = true;
+
+  while (!consume(&tok, tok, ";")) {
+    if (!first)
+      tok = skip(tok, ",");
+    first = false;
+
+    Type *ty = declarator(&tok, tok, basety);
+    push_scope(get_ident(ty->name))->type_def = ty;
+  }
+  return tok;
 }
 
 static void create_param_lvars(Type *param) {
@@ -975,12 +1032,19 @@ static bool is_function(Token *tok) {
   return ty->kind == TY_FUNC;
 }
 
-// program = (function-definition | global-variable)*
+// program = (typedef | function-definition | global-variable)*
 Obj *parse(Token *tok) {
   globals = NULL;
 
   while (tok->kind != TK_EOF) {
-    Type *basety = declspec(&tok, tok);
+    VarAttr attr = {};
+    Type *basety = declspec(&tok, tok, &attr);
+
+    // Typedef
+    if (attr.is_typedef) {
+      tok = parse_typedef(tok, basety);
+      continue;
+    }
 
     // Function
     if (is_function(tok)) {
