@@ -74,6 +74,7 @@ static Type *find_tag(Token *tok) {
   return NULL;
 }
 
+static bool is_typename(Token *tok);
 static Type *declspec(Token **rest, Token *tok);
 static Type *declarator(Token **rest, Token *tok, Type *ty);
 static Node *declaration(Token **rest, Token *tok);
@@ -223,40 +224,82 @@ static int get_number(Token *tok) {
   return tok->val;
 }
 
-// declspec = "void" | "char" | "short" | "int" | "long" | struct-decl | union-decl
+// declspec = ("void" | "char" | "short" | "int" | "long"
+//             | struct-decl | union-decl)+
+//
+// 类型名的顺序是无关紧要的。例如，`int long static`和`static long int`的含义是一样的。
+// 而且还可以写成`static long`，因为当我们指定了`long`和`short`以后，可以省略掉`int`。
+// 尽管如此，`char int`是不合法的类型声明。我们只能接受有限的类型名的组合。
+//
+// 在这个函数中，我们统计了每个类型名的出现的次数，直到遇见一个非类型名的标记，
+// 我们就可以返回当前的类型对象了。
 static Type *declspec(Token **rest, Token *tok) {
-  if (equal(tok, "void")) {
-    *rest = tok->next;
-    return ty_void;
+  // 我们使用一个单独的整型作为所有类型名的计数器。
+  // 例如，位0和1表示我们看到关键字`void`多少次。
+  enum {
+    VOID  = 1 << 0,
+    CHAR  = 1 << 2,
+    SHORT = 1 << 4,
+    INT   = 1 << 6,
+    LONG  = 1 << 8,
+    OTHER = 1 << 10,
+  };
+
+  Type *ty = ty_int;
+  int counter = 0;
+
+  while (is_typename(tok)) {
+    // Handle user-defined types.
+    if (equal(tok, "struct") || equal(tok, "union")) {
+      if (equal(tok, "struct"))
+        ty = struct_decl(&tok, tok->next);
+      else
+        ty = union_decl(&tok, tok->next);
+      counter += OTHER;
+      continue;
+    }
+
+    // Handle built-in types.
+    if (equal(tok, "void"))
+      counter += VOID;
+    else if (equal(tok, "char"))
+      counter += CHAR;
+    else if (equal(tok, "short"))
+      counter += SHORT;
+    else if (equal(tok, "int"))
+      counter += INT;
+    else if (equal(tok, "long"))
+      counter += LONG;
+    else
+      unreachable();
+
+    switch (counter) {
+    case VOID:
+      ty = ty_void;
+      break;
+    case CHAR:
+      ty = ty_char;
+      break;
+    case SHORT:
+    case SHORT + INT:
+      ty = ty_short;
+      break;
+    case INT:
+      ty = ty_int;
+      break;
+    case LONG:
+    case LONG + INT:
+      ty = ty_long;
+      break;
+    default:
+      error_tok(tok, "无效的类型");
+    }
+
+    tok = tok->next;
   }
 
-  if (equal(tok, "char")) {
-    *rest = tok->next;
-    return ty_char;
-  }
-
-  if (equal(tok, "short")) {
-    *rest = tok->next;
-    return ty_short;
-  }
-
-  if (equal(tok, "int")) {
-    *rest = tok->next;
-    return ty_int;
-  }
-
-  if (equal(tok, "long")) {
-    *rest = tok->next;
-    return ty_long;
-  }
-
-  if (equal(tok, "struct"))
-    return struct_decl(rest, tok->next);
-
-  if (equal(tok, "union"))
-    return union_decl(rest, tok->next);
-
-  error_tok(tok, "预期一个类型名");
+  *rest = tok;
+  return ty;
 }
 
 // func-params = (param ("," param)*)? ")"
