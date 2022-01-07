@@ -174,16 +174,28 @@ static void gen_expr(Node *node) {
 
   switch (node->kind) {
   case ND_ADD:
-    println("  add a0, a0, a1");
+    if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base)
+      println("  add a0, a0, a1");
+    else
+      println("  addw a0, a0, a1");
     return;
   case ND_SUB:
-    println("  sub a0, a1, a0");
+    if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base)
+      println("  sub a0, a1, a0");
+    else
+      println("  subw a0, a1, a0");
     return;
   case ND_MUL:
-    println("  mul a0, a0, a1");
+    if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base)
+      println("  mul a0, a0, a1");
+    else
+      println("  mulw a0, a0, a1");
     return;
   case ND_DIV:
-    println("  div a0, a1, a0");
+    if (node->lhs->ty->kind == TY_LONG || node->lhs->ty->base)
+      println("  div a0, a1, a0");
+    else
+      println("  divw a0, a1, a0");
     return;
   case ND_EQ:
     println("  sub a0, a1, a0");
