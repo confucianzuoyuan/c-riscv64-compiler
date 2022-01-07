@@ -1,5 +1,7 @@
 #include "zhizhicc.h"
 
+Type *ty_void = &(Type){TY_VOID, 1, 1};
+
 Type *ty_char = &(Type){TY_CHAR, 1, 1};
 Type *ty_short = &(Type){TY_SHORT, 2, 2};
 Type *ty_int = &(Type){TY_INT, 4, 4};
@@ -104,6 +106,8 @@ void add_type(Node *node) {
   case ND_DEREF:
     if (!node->lhs->ty->kind)
       error_tok(node->tok, "无效的指针解引用");
+    if (node->lhs->ty->base->kind == TY_VOID)
+      error_tok(node->tok, "不能解引用一个void指针");
     // 节点的类型是lhs的类型。
     // *a的类型是a指向的值的类型
     node->ty = node->lhs->ty->base;
