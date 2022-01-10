@@ -948,6 +948,13 @@ static Node *funcall(Token **rest, Token *tok) {
   Token *start = tok;
   tok = tok->next->next;
 
+  VarScope *sc = find_var(start);
+  if (!sc)
+    error_tok(start, "函数未正式声明");
+  if (!sc->var || sc->var->ty->kind != TY_FUNC)
+    error_tok(start, "不是一个函数");
+
+  Type *ty = sc->var->ty->return_ty;
   Node head = {};
   Node *cur = &head;
 
@@ -955,12 +962,14 @@ static Node *funcall(Token **rest, Token *tok) {
     if (cur != &head)
       tok = skip(tok, ",");
     cur = cur->next = assign(&tok, tok);
+    add_type(cur);
   }
 
   *rest = skip(tok, ")");
 
   Node *node = new_node(ND_FUNCALL, start);
   node->funcname = strndup(start->loc, start->len);
+  node->ty = ty;
   node->args = head.next;
   return node;
 }
