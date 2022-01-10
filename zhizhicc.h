@@ -110,6 +110,7 @@ typedef enum {
   ND_STMT_EXPR, // 语句表达式
   ND_VAR,       // 变量
   ND_NUM,       // 整数
+  ND_CAST,      // 强制类型转换
 } NodeKind;
 
 // 抽象语法树节点类型
