@@ -72,6 +72,9 @@ static Obj *globals;
 // 创建一个空作用域
 static Scope *scope = &(Scope){};
 
+// 指向语法分析器当前分析的函数对象
+static Obj *current_fn;
+
 static Type *find_tag(Token *tok) {
   for (Scope *sc = scope; sc; sc = sc->next)
     for (TagScope *sc2 = sc->tags; sc2; sc2 = sc2->next)
@@ -497,8 +500,11 @@ static bool is_typename(Token *tok) {
 static Node *stmt(Token **rest, Token *tok) {
   if (equal(tok, "return")) {
     Node *node = new_node(ND_RETURN, tok);
-    node->lhs = expr(&tok, tok->next);
+    Node *exp = expr(&tok, tok->next);
     *rest = skip(tok, ";");
+
+    add_type(exp);
+    node->lhs = new_cast(exp, current_fn->ty->return_ty);
     return node;
   }
 
@@ -1069,6 +1075,7 @@ static Token *function(Token *tok, Type *basety) {
   if (!fn->is_definition)
     return tok;
 
+  current_fn = fn;
   locals = NULL;
   // 进入作用域
   enter_scope();

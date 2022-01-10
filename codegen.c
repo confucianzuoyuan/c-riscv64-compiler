@@ -126,7 +126,10 @@ static int getTypeId(Type *ty) {
 }
 
 // The table for type casts
-static char i32i8[] = "addi sp, sp, -4\n  sb a0, 0(sp)\n  lw a0, 0(sp)\n  addi sp, sp, 4";
+//+static char i32i8[] = "movsbl %al, %eax";
+//+static char i32i16[] = "movswl %ax, %eax";
+//+static char i32i64[] = "movsxd %eax, %rax";
+static char i32i8[] = "addi sp, sp, -4\n  sb a0, 0(sp)\n  lw a0, 0(sp)\n  andi a0, a0, 0xff\n  addi sp, sp, 4";
 static char i32i16[] = "addi sp, sp, -4\n  sh a0, 0(sp)\n  lw a0, 0(sp)\n  addi sp, sp, 4";
 static char i32i64[] = "addi sp, sp, -8\n  sd a0, 0(sp)\n  lw a0, 0(sp)\n  addi sp, sp, 8";
 
