@@ -960,22 +960,34 @@ static Node *funcall(Token **rest, Token *tok) {
   if (!sc->var || sc->var->ty->kind != TY_FUNC)
     error_tok(start, "不是一个函数");
 
-  Type *ty = sc->var->ty->return_ty;
+  Type *ty = sc->var->ty;
+  Type *param_ty = ty->params;
   Node head = {};
   Node *cur = &head;
 
   while (!equal(tok, ")")) {
     if (cur != &head)
       tok = skip(tok, ",");
-    cur = cur->next = assign(&tok, tok);
-    add_type(cur);
+    
+    Node *arg = assign(&tok, tok);
+    add_type(arg);
+
+    if (param_ty) {
+      if (param_ty->kind == TY_STRUCT || param_ty->kind == TY_UNION)
+        error_tok(arg->tok, "还不支持传入结构体或者联合类型的参数");
+      arg = new_cast(arg, param_ty);
+      param_ty = param_ty->next;
+    }
+
+    cur = cur->next = arg;
   }
 
   *rest = skip(tok, ")");
 
   Node *node = new_node(ND_FUNCALL, start);
   node->funcname = strndup(start->loc, start->len);
-  node->ty = ty;
+  node->func_ty = ty;
+  node->ty = ty->return_ty;
   node->args = head.next;
   return node;
 }

@@ -138,6 +138,7 @@ struct Node {
 
   // 函数调用
   char *funcname;
+  Type *func_ty;
   Node *args;
 
   Obj *var;      // 如果 kind == ND_VAR ，则使用这个字段
