@@ -144,6 +144,7 @@ struct Node {
   int64_t val;   // 如果kind == ND_NUM，则使用这个字段
 };
 
+Node *new_cast(Node *expr, Type *ty);
 Obj *parse(Token *tok);
 
 //

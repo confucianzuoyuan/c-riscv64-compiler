@@ -165,6 +165,13 @@ static Node *new_num(int64_t val, Token *tok) {
   return node;
 }
 
+static Node *new_long(int64_t val, Token *tok) {
+  Node *node = new_node(ND_NUM, tok);
+  node->val = val;
+  node->ty = ty_long;
+  return node;
+}
+
 // 创建变量节点
 static Node *new_var_node(Obj *var, Token *tok) {
   Node *node = new_node(ND_VAR, tok);
@@ -172,7 +179,7 @@ static Node *new_var_node(Obj *var, Token *tok) {
   return node;
 }
 
-static Node *new_cast(Node *expr, Type *ty) {
+Node *new_cast(Node *expr, Type *ty) {
   add_type(expr);
 
   Node *node = calloc(1, sizeof(Node));
@@ -685,7 +692,7 @@ static Node *new_add(Node *lhs, Node *rhs, Token *tok) {
 
   // ptr + num
   // rhs = rhs * 8
-  rhs = new_binary(ND_MUL, rhs, new_num(lhs->ty->base->size, tok), tok);
+  rhs = new_binary(ND_MUL, rhs, new_long(lhs->ty->base->size, tok), tok);
   return new_binary(ND_ADD, lhs, rhs, tok);
 }
 
@@ -700,7 +707,7 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *tok) {
 
   // ptr - num
   if (lhs->ty->base && is_integer(rhs->ty)) {
-    rhs = new_binary(ND_MUL, rhs, new_num(lhs->ty->base->size, tok), tok);
+    rhs = new_binary(ND_MUL, rhs, new_long(lhs->ty->base->size, tok), tok);
     add_type(rhs);
     Node *node = new_binary(ND_SUB, lhs, rhs, tok);
     node->ty = lhs->ty;
