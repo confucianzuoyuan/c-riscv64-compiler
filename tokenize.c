@@ -221,7 +221,7 @@ static Token *read_string_literal(char *start) {
 static Token *read_char_literal(char *start) {
   char *p = start + 1;
   if (*p == '\0')
-    error_at(start, "unclosed char literal");
+    error_at(start, "未闭合的字符字面量");
 
   char c;
   if (*p == '\\')
@@ -231,10 +231,33 @@ static Token *read_char_literal(char *start) {
 
   char *end = strchr(p, '\'');
   if (!end)
-    error_at(p, "unclosed char literal");
+    error_at(p, "未闭合的字符字面量");
 
   Token *tok = new_token(TK_NUM, start, end + 1);
   tok->val = c;
+  return tok;
+}
+
+static Token *read_int_literal(char *start) {
+  char *p = start;
+
+  int base = 10;
+  if (!strncasecmp(p, "0x", 2) && isalnum(p[2])) {
+    p += 2;
+    base = 16;
+  } else if (!strncasecmp(p, "0b", 2) && isalnum(p[2])) {
+    p += 2;
+    base = 2;
+  } else if (*p == '0') {
+    base = 8;
+  }
+
+  long val = strtoul(p, &p, base);
+  if (isalnum(*p))
+    error_at(p, "无效数字");
+
+  Token *tok = new_token(TK_NUM, start, p);
+  tok->val = val;
   return tok;
 }
 
@@ -291,11 +314,8 @@ Token *tokenize(char *filename, char *p) {
 
     // 数值字面量
     if (isdigit(*p)) {
-      cur = cur->next = new_token(TK_NUM, p, p);
-      char *q = p;
-      // strtoul: 将字符串转换成无符号长整型；string to unsigned long
-      cur->val = strtoul(p, &p, 10);
-      cur->len = p - q;
+      cur = cur->next = read_int_literal(p);
+      p += cur->len;
       continue;
     }
 
