@@ -17,11 +17,12 @@ static Type *new_type(TypeKind kind, int size, int align) {
 }
 
 bool is_integer(Type *ty) {
-  return ty->kind == TY_INT ||
-         ty->kind == TY_CHAR ||
-         ty->kind == TY_LONG ||
+  return ty->kind == TY_INT   ||
+         ty->kind == TY_CHAR  ||
+         ty->kind == TY_LONG  ||
          ty->kind == TY_SHORT ||
-         ty->kind == TY_BOOL;
+         ty->kind == TY_BOOL  ||
+         ty->kind == TY_ENUM;
 }
 
 Type *copy_type(Type *ty) {
@@ -48,6 +49,10 @@ Type *array_of(Type *base, int len) {
   ty->base = base;
   ty->array_len = len;
   return ty;
+}
+
+Type *enum_type(void) {
+  return new_type(TY_ENUM, 4, 4);
 }
 
 static Type *get_common_type(Type *ty1, Type *ty2) {
