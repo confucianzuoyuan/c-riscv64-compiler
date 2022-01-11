@@ -374,7 +374,11 @@ static void emit_text(Obj *prog) {
     if (!fn->is_function || !fn->is_definition)
       continue;
 
-    println(".global %s", fn->name);
+    if (fn->is_static)
+      println("  .local %s", fn->name);
+    else
+      println("  .globl %s", fn->name);
+
     println(".text");
     println("%s:", fn->name);
     current_fn = fn;

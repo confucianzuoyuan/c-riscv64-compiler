@@ -64,6 +64,7 @@ struct Scope {
 // 变量的属性，例如typedef或者extern。
 typedef struct {
   bool is_typedef;
+  bool is_static;
 } VarAttr;
 
 // 语法分析时产生的所有的局部变量实例都存储到下面的列表中。
@@ -266,7 +267,7 @@ static long get_number(Token *tok) {
 }
 
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
-//             | "typedef"
+//             | "typedef" | "static"
 //             | struct-decl | union-decl | typedef-name
 //             | enum-specifier)+
 //
@@ -293,11 +294,18 @@ static Type *declspec(Token **rest, Token *tok, VarAttr *attr) {
   int counter = 0;
 
   while (is_typename(tok)) {
-    // 处理typedef关键字
-    if (equal(tok, "typedef")) {
+    // 处理存储类型storage class关键字
+    if (equal(tok, "typedef") || equal(tok, "static")) {
       if (!attr)
         error_tok(tok, "不允许在上下文中指定存储类型");
-      attr->is_typedef = true;
+
+      if (equal(tok, "typedef"))
+        attr->is_typedef = true;
+      else
+        attr->is_static = true;
+
+      if (attr->is_typedef + attr->is_static > 1)
+        error_tok(tok, "typedef和static关键字不能同时使用");
       tok = tok->next;
       continue;
     }
@@ -546,8 +554,7 @@ static Node *declaration(Token **rest, Token *tok, Type *basety) {
 // 如果给定记号是类型，则返回true
 static bool is_typename(Token *tok) {
   static char *kw[] = {
-    "void", "_Bool", "char", "short", "int", "long", "struct", "union",
-    "typedef", "enum",
+    "void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum", "static"
   };
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
@@ -1148,12 +1155,13 @@ static void create_param_lvars(Type *param) {
   }
 }
 
-static Token *function(Token *tok, Type *basety) {
+static Token *function(Token *tok, Type *basety, VarAttr *attr) {
   Type *ty = declarator(&tok, tok, basety);
 
   Obj *fn = new_gvar(get_ident(ty->name), ty);
   fn->is_function = true;
   fn->is_definition = !consume(&tok, tok, ";");
+  fn->is_static = attr->is_static;
 
   if (!fn->is_definition)
     return tok;
@@ -1214,7 +1222,7 @@ Obj *parse(Token *tok) {
 
     // Function
     if (is_function(tok)) {
-      tok = function(tok, basety);
+      tok = function(tok, basety, &attr);
       continue;
     }
 

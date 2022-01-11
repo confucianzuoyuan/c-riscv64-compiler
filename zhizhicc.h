@@ -74,6 +74,7 @@ struct Obj {
   // 全局变量还是函数
   bool is_function;
   bool is_definition;
+  bool is_static;
 
   // 全局变量
   char *init_data;
