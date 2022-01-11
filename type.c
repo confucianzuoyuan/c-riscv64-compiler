@@ -128,6 +128,9 @@ void add_type(Node *node) {
     // 节点类型是long
     node->ty = ty_long;
     return;
+  case ND_NOT:
+    node->ty = ty_int;
+    return;
   case ND_VAR:
     node->ty = node->var->ty;
     return;
