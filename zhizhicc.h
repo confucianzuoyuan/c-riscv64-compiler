@@ -204,6 +204,7 @@ struct Type {
 struct Member {
   Member *next;
   Type *ty;
+  Token *tok; // 供错误信息使用
   Token *name;
   int offset;
 };
