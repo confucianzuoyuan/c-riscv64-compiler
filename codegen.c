@@ -336,14 +336,14 @@ static void gen_stmt(Node *node) {
     println(".L.begin.%d:", c);
     if (node->cond) {
       gen_expr(node->cond);
-      println("  ble a0, zero, .L.end.%d", c);
+      println("  ble a0, zero, %s", node->brk_label);
     }
     gen_stmt(node->then);
     if (node->inc) {
       gen_expr(node->inc);
     }
     println("  j .L.begin.%d", c);
-    println(".L.end.%d:", c);
+    println("%s:", node->brk_label);
     return;
   }
   case ND_BLOCK:
