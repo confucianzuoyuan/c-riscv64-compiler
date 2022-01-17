@@ -1075,22 +1075,37 @@ static Type *struct_union_decl(Token **rest, Token *tok) {
   }
 
   if (tag && !equal(tok, "{")) {
-    Type *ty = find_tag(tag);
-    if (!ty)
-      error_tok(tag, "未知的结构体类型");
     *rest = tok;
+
+    Type *ty = find_tag(tag);
+    if (ty)
+      return ty;
+
+    ty = struct_type();
+    ty->size = -1;
+    push_tag_scope(tag, ty);
     return ty;
   }
 
-  // 实例化一个结构体对象
-  Type *ty = calloc(1, sizeof(Type));
-  ty->kind = TY_STRUCT;
-  struct_members(rest, tok->next, ty);
-  ty->align = 1;
+  tok = skip(tok, "{");
 
-  // 如果标签有名字，那么注册这个名字到作用域中
-  if (tag)
+  // 实例化一个结构体对象
+  Type *ty = struct_type();
+  struct_members(rest, tok, ty);
+
+  if (tag) {
+    // 如果这里出现了结构体的重复定义，
+    // 则后面的覆盖掉前面的定义。
+    // 否则，注册这个结构体类型。
+    for (TagScope *sc = scope->tags; sc; sc = sc->next) {
+      if (equal(tag, sc->name)) {
+        *sc->ty = *ty;
+        return sc->ty;
+      }
+    }
+
     push_tag_scope(tag, ty);
+  }
   return ty;
 }
 
@@ -1098,6 +1113,9 @@ static Type *struct_union_decl(Token **rest, Token *tok) {
 static Type *struct_decl(Token **rest, Token *tok) {
   Type *ty = struct_union_decl(rest, tok);
   ty->kind = TY_STRUCT;
+
+  if (ty->size < 0)
+    return ty;
 
   // 为结构体中的每个成员都计算offset偏移量
   int offset = 0;
@@ -1117,6 +1135,9 @@ static Type *struct_decl(Token **rest, Token *tok) {
 static Type *union_decl(Token **rest, Token *tok) {
   Type *ty = struct_union_decl(rest, tok);
   ty->kind = TY_UNION;
+
+  if (ty->size < 0)
+    return ty;
 
   // 计算union的内存对齐的offset
   // 因为union的内存对齐通常会对齐到union中最大的数据类型的长度所对齐的位置。
