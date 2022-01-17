@@ -142,8 +142,9 @@ struct Node {
   Node *init;
   Node *inc;
 
-  // "break"标签
+  // "break"和"continue"标签
   char *brk_label;
+  char *cont_label;
 
   // 花括号包含的代码，Block或者语句表达式
   Node *body;
