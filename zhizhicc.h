@@ -115,6 +115,8 @@ typedef enum {
   ND_IF,        // if语句
   ND_FOR,       // for语句或者while语句
   ND_BLOCK,     // 块语句 { ... }
+  ND_GOTO,      // "goto"
+  ND_LABEL,     // 带标签的语句
   ND_FUNCALL,   // 函数调用
   ND_EXPR_STMT, // 表达式语句
   ND_STMT_EXPR, // 语句表达式
@@ -150,6 +152,11 @@ struct Node {
   char *funcname;
   Type *func_ty;
   Node *args;
+
+  // Goto或者带标签的语句
+  char *label;
+  char *unique_label;
+  Node *goto_next;
 
   Obj *var;      // 如果 kind == ND_VAR ，则使用这个字段
   int64_t val;   // 如果kind == ND_NUM，则使用这个字段

@@ -78,6 +78,10 @@ static Scope *scope = &(Scope){};
 // 指向语法分析器当前分析的函数对象
 static Obj *current_fn;
 
+// 当前函数所有的goto语句和标签
+static Node *gotos;
+static Node *labels;
+
 static Type *find_tag(Token *tok) {
   for (Scope *sc = scope; sc; sc = sc->next)
     for (TagScope *sc2 = sc->tags; sc2; sc2 = sc2->next)
@@ -597,6 +601,8 @@ static bool is_typename(Token *tok) {
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "for" "(" expr-stmt expr? ";" expr? ")" stmt
 //      | "while" "(" expr ")" stmt
+//      | "goto" ident ";"
+//      | ident ":" stmt
 //      | "{" compound-stmt
 //      | expr-stmt
 static Node *stmt(Token **rest, Token *tok) {
@@ -654,6 +660,25 @@ static Node *stmt(Token **rest, Token *tok) {
     node->cond = expr(&tok, tok);
     tok = skip(tok, ")");
     node->then = stmt(rest, tok);
+    return node;
+  }
+
+  if (equal(tok, "goto")) {
+    Node *node = new_node(ND_GOTO, tok);
+    node->label = get_ident(tok->next);
+    node->goto_next = gotos;
+    gotos = node;
+    *rest = skip(tok->next->next, ";");
+    return node;
+  }
+
+  if (tok->kind == TK_IDENT && equal(tok->next, ":")) {
+    Node *node = new_node(ND_LABEL, tok);
+    node->label = strndup(tok->loc, tok->len);
+    node->unique_label = new_unique_name();
+    node->lhs = stmt(rest, tok->next->next);
+    node->goto_next = labels;
+    labels = node;
     return node;
   }
 
@@ -1358,6 +1383,27 @@ static void create_param_lvars(Type *param) {
   }
 }
 
+// 这个函数将goto语句和标签匹配起来
+//
+// 当对函数进行语法分析时，我们无法解析goto语句，
+// 因为goto的标签可能指向的是一个出现在函数后面的标签。
+// 所以我们需要等语法分析完整个函数以后再进行解析。
+static void resolve_goto_labels(void) {
+  for (Node *x = gotos; x; x = x->goto_next) {
+    for (Node *y = labels; y; y = y->goto_next) {
+      if (!strcmp(x->label, y->label)) {
+        x->unique_label = y->unique_label;
+        break;
+      }
+    }
+
+    if (x->unique_label == NULL)
+      error_tok(x->tok->next, "使用了未声明的标签");
+  }
+
+  gotos = labels = NULL;
+}
+
 static Token *function(Token *tok, Type *basety, VarAttr *attr) {
   Type *ty = declarator(&tok, tok, basety);
 
@@ -1381,6 +1427,8 @@ static Token *function(Token *tok, Type *basety, VarAttr *attr) {
   fn->locals = locals;
   // 离开作用域
   leave_scope();
+  // 解析goto标签
+  resolve_goto_labels();
   return tok;
 }
 
